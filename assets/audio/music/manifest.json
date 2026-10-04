@@ -1,0 +1,26 @@
+{
+  "lobby": {
+    "seconds": 40.0,
+    "bpm": 96
+  },
+  "fortune": {
+    "seconds": 34.286,
+    "bpm": 112
+  },
+  "fish": {
+    "seconds": 41.739,
+    "bpm": 92
+  },
+  "vampire": {
+    "seconds": 49.231,
+    "bpm": 78
+  },
+  "wheel": {
+    "seconds": 35.556,
+    "bpm": 108
+  },
+  "plinko": {
+    "seconds": 36.923,
+    "bpm": 104
+  }
+}
