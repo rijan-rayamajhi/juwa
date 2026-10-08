@@ -684,16 +684,21 @@ class _JuwaButtonState extends State<JuwaButton> {
                   Icon(widget.icon, size: 18, color: const Color(0xFF2A1500)),
                   const SizedBox(width: 8),
                 ],
-                Text(
-                  widget.label.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF281400),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    letterSpacing: 1.2,
-                    shadows: [
-                      Shadow(color: Color(0x66FFFFFF), offset: Offset(0, 1)),
-                    ],
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.label.toUpperCase(),
+                      style: const TextStyle(
+                        color: Color(0xFF281400),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 1.2,
+                        shadows: [
+                          Shadow(color: Color(0x66FFFFFF), offset: Offset(0, 1)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],

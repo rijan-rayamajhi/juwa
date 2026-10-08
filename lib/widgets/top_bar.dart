@@ -7,6 +7,8 @@ import '../theme.dart';
 import '../util.dart';
 import '../screens/popups.dart';
 
+import '../services/real_money_service.dart';
+
 /// Lobby top bar: VIP avatar + currencies (left), centered Juwa logo (center),
 /// and menu/utility icons with active notification badges (right).
 class TopBar extends StatelessWidget {
@@ -96,6 +98,9 @@ class TopBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Real Money Action Button
+                      const RealCashTopPill(),
+                      const SizedBox(width: 8),
                       _LobbyIconButton(
                         asset: 'assets/images/bonus.png',
                         tooltip: 'Daily Bonus',
@@ -121,6 +126,82 @@ class TopBar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Glowing casino pill button for Real Cash / Real Money play.
+class RealCashTopPill extends StatelessWidget {
+  const RealCashTopPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GamePress(
+      onTap: () => launchRealMoneyPortal(context),
+      child: Container(
+        padding: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFFFF59D), // Gold highlight
+              Color(0xFFFFD54F),
+              Color(0xFFFF8F00),
+              Color(0xFF43A047), // Emerald neon
+            ],
+            stops: [0.0, 0.35, 0.7, 1.0],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF43A047).withValues(alpha: 0.55),
+              blurRadius: 8,
+              spreadRadius: 1.0,
+            ),
+            const BoxShadow(
+              color: Colors.black54,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF1B5E20), // Casino Emerald Green
+                Color(0xFF003300),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18.5),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.monetization_on_rounded,
+                color: Color(0xFFFFD54F),
+                size: 14,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'PLAY REAL',
+                style: TextStyle(
+                  color: Color(0xFFFFF9C4),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

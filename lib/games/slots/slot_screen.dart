@@ -7,11 +7,11 @@ import 'package:flutter/services.dart';
 import '../../services/wallet_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme.dart';
-import '../../util.dart';
 import '../../widgets/juwa_popup.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/game_footer.dart';
 import '../../widgets/coin_flow_overlay.dart';
+import '../../widgets/big_win_celebration_overlay.dart';
 import 'slot_config.dart';
 import 'slot_engine.dart';
 import 'slot_theme.dart';
@@ -190,7 +190,7 @@ class _SlotScreenState extends State<SlotScreen> with TickerProviderStateMixin {
 
     if (!_wallet.bet(_bet, game: widget.theme.title)) {
       AudioService.instance.play(GameSound.error);
-      showGetCoinsPopup(context);
+      showOutOfCoinsDialog(context);
       if (_auto) setState(() => _auto = false);
       return;
     }
@@ -293,26 +293,41 @@ class _SlotScreenState extends State<SlotScreen> with TickerProviderStateMixin {
 
       if (banner != null) {
         _celebrationController.forward(from: 0);
-        _celebrationTimer = Timer(const Duration(milliseconds: 2300), () {
-          if (mounted && _celebrationTitle != null) {
-            _celebrationController.reverse().then((_) {
-              if (mounted) setState(() => _celebrationTitle = null);
-            });
-          }
-        });
+        // Do not auto-close Big Win; require manual close from player
       }
     }
 
-    // Autoplay progression
-    if (_auto) {
+    // Autoplay progression (only if not waiting for Big Win dismissal)
+    if (_auto && banner == null) {
       if (_wallet.canBet(_bet)) {
         _autoTimer = Timer(const Duration(milliseconds: 700), () {
-          if (mounted && _auto && !_spinning) _spin();
+          if (mounted && _auto && !_spinning && _celebrationTitle == null) {
+            _spin();
+          }
         });
       } else {
         setState(() => _auto = false);
       }
     }
+  }
+
+  void _dismissCelebration() {
+    _celebrationTimer?.cancel();
+    _celebrationController.reverse().then((_) {
+      if (mounted) {
+        setState(() => _celebrationTitle = null);
+        // If auto play was on, resume after celebration dismissed
+        if (_auto && !_spinning) {
+          if (_wallet.canBet(_bet)) {
+            _autoTimer = Timer(const Duration(milliseconds: 400), () {
+              if (mounted && _auto && !_spinning) _spin();
+            });
+          } else {
+            setState(() => _auto = false);
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -380,6 +395,19 @@ class _SlotScreenState extends State<SlotScreen> with TickerProviderStateMixin {
                 child: CoinFlowOverlay(controller: _coinFlowController),
               ),
             ),
+
+            // Big Win Celebration Overlay with Play for Real & Manual Close
+            if (_celebrationTitle != null)
+              Positioned.fill(
+                child: FadeTransition(
+                  opacity: _celebrationController,
+                  child: BigWinCelebrationOverlay(
+                    title: _celebrationTitle!,
+                    winAmount: _lastWin,
+                    onClose: _dismissCelebration,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -582,10 +610,6 @@ class _SlotScreenState extends State<SlotScreen> with TickerProviderStateMixin {
                   child: Image.asset(_theme.frame, fit: BoxFit.fill),
                 ),
               ),
-
-              // 4. Big Win / Celebration Overlay
-              if (_celebrationTitle != null)
-                Positioned.fill(child: _celebrationOverlay()),
             ],
           ),
         );
@@ -714,82 +738,6 @@ class _SlotScreenState extends State<SlotScreen> with TickerProviderStateMixin {
               color: JuwaColors.gold,
               fontWeight: FontWeight.bold,
               fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _celebrationOverlay() {
-    return FadeTransition(
-      opacity: _celebrationController,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-          CurvedAnimation(
-            parent: _celebrationController,
-            curve: Curves.elasticOut,
-          ),
-        ),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xEE37144D), Color(0xEE160723)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: JuwaColors.gold, width: 2.5),
-              boxShadow: [
-                BoxShadow(
-                  color: JuwaColors.gold.withValues(alpha: 0.6),
-                  blurRadius: 28,
-                  spreadRadius: 4,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ShaderMask(
-                  shaderCallback: (r) => const LinearGradient(
-                    colors: [
-                      Color(0xFFFFF9DB),
-                      JuwaColors.gold,
-                      Color(0xFFFFB300),
-                    ],
-                  ).createShader(r),
-                  child: Text(
-                    _celebrationTitle ?? '',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/images/coin.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '+${formatCoins(_lastWin)}',
-                      style: const TextStyle(
-                        color: JuwaColors.gold,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ),

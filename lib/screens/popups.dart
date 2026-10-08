@@ -6,15 +6,11 @@ import '../services/settings_service.dart';
 import '../theme.dart';
 import '../util.dart';
 import '../widgets/juwa_popup.dart';
+import '../widgets/juwa_snackbar.dart';
+import '../services/real_money_service.dart';
 
-void _snack(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: JuwaColors.panel,
-      behavior: SnackBarBehavior.floating,
-    ));
+void _snack(BuildContext context, String msg, {Widget? icon, GameSound? sound}) {
+  showJuwaSnackBar(context, msg, icon: icon, sound: sound);
 }
 
 // ---------------- Get Coins / Daily Bonus ----------------
@@ -51,8 +47,11 @@ void showGetCoinsPopup(BuildContext context) {
                   onTap: () {
                     final r = w.claimDailyBonus();
                     Navigator.of(ctx).pop();
-                    _snack(context,
-                        'Claimed +${formatCoins(r.coins)} coins & +${r.gems} gems!');
+                    _snack(
+                      context,
+                      'Claimed +${formatCoins(r.coins)} coins & +${r.gems} gems!',
+                      sound: GameSound.win,
+                    );
                   },
                 )
               else
@@ -73,11 +72,22 @@ void showGetCoinsPopup(BuildContext context) {
                   label: 'Free Refill +${formatCoins(WalletService.rescueCoins)}',
                   onTap: () {
                     w.claimRescue();
-                    _snack(context,
-                        'Refilled +${formatCoins(WalletService.rescueCoins)} coins');
+                    _snack(
+                      context,
+                      'Refilled +${formatCoins(WalletService.rescueCoins)} coins',
+                      sound: GameSound.win,
+                    );
                   },
                 ),
               ],
+              const SizedBox(height: 14),
+              // Real Money CTA Banner
+              _RealMoneyPromoCard(
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  launchRealMoneyPortal(context);
+                },
+              ),
               const SizedBox(height: 16),
               const Text('Exchange Gems',
                   style: TextStyle(
@@ -97,8 +107,11 @@ void showGetCoinsPopup(BuildContext context) {
                       onTap: w.gems >= g
                           ? () {
                               w.exchangeGems(g);
-                              _snack(context,
-                                  '+${formatCoins(g * WalletService.coinsPerGem)} coins');
+                              _snack(
+                                context,
+                                '+${formatCoins(g * WalletService.coinsPerGem)} coins',
+                                sound: GameSound.win,
+                              );
                             }
                           : null,
                     ),
@@ -249,8 +262,11 @@ void showMailPopup(BuildContext context) {
                   label: 'Claim All',
                   onTap: () {
                     final (c, g) = w.claimAllMail();
-                    _snack(context,
-                        'Claimed +${formatCoins(c)} coins & +$g gems!');
+                    _snack(
+                      context,
+                      'Claimed +${formatCoins(c)} coins & +$g gems!',
+                      sound: GameSound.win,
+                    );
                   },
                 ),
               ],
@@ -296,7 +312,7 @@ Widget _mailRow(BuildContext context, MailItem m) => Container(
             label: 'Claim',
             onTap: () {
               WalletService.instance.claimMail(m.id);
-              _snack(context, 'Claimed ${m.title}!');
+              _snack(context, 'Claimed ${m.title}!', sound: GameSound.win);
             },
           ),
         ],
@@ -374,17 +390,223 @@ void _confirmReset(BuildContext context, BuildContext settingsCtx) {
               await WalletService.instance.resetProgress();
               confirmNav.pop();
               settingsNav.pop();
-              messenger
-                ..hideCurrentSnackBar()
-                ..showSnackBar(const SnackBar(
-                  content: Text('Progress reset'),
-                  backgroundColor: JuwaColors.panel,
-                  behavior: SnackBarBehavior.floating,
-                ));
+              showJuwaMessengerSnackBar(messenger, 'Progress reset');
             },
           ),
         ],
       ),
     ),
   );
+}
+
+/// Out-of-coins rescue & real-money upsell modal.
+void showOutOfCoinsDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => JuwaPopup(
+      title: 'Out of Coins',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [Color(0x55FFD54F), Colors.transparent],
+              ),
+            ),
+            child: Image.asset(
+              'assets/images/coin.png',
+              width: 56,
+              height: 56,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Need More Balance?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Grab free daily coins or step into real high-stakes play!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: JuwaColors.textDim,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Real Money CTA
+          _RealMoneyPromoCard(
+            onTap: () {
+              Navigator.of(ctx).pop();
+              launchRealMoneyPortal(context);
+            },
+          ),
+          const SizedBox(height: 12),
+          if (WalletService.instance.rescueReady)
+            JuwaButton(
+              label: 'Claim Free Refill (+${formatCoins(WalletService.rescueCoins)})',
+              onTap: () {
+                WalletService.instance.claimRescue();
+                Navigator.of(ctx).pop();
+                showJuwaSnackBar(
+                  context,
+                  'Refilled +${formatCoins(WalletService.rescueCoins)} coins',
+                  sound: GameSound.win,
+                );
+              },
+            )
+          else
+            JuwaButton(
+              label: 'Open Coin Store',
+              onTap: () {
+                Navigator.of(ctx).pop();
+                showGetCoinsPopup(context);
+              },
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// High-converting luxury real money promotional banner.
+class _RealMoneyPromoCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _RealMoneyPromoCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFF9C4), // Golden shine
+            Color(0xFFFFD54F),
+            Color(0xFF00E676), // Electric emerald
+            Color(0xFF1B5E20),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00E676).withValues(alpha: 0.35),
+            blurRadius: 10,
+            spreadRadius: 0.5,
+          ),
+          const BoxShadow(
+            color: Colors.black54,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(1.5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF142E15), // Deep emerald velvet
+              Color(0xFF0A180B),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF66BB6A), Color(0xFF2E7D32)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF66BB6A).withValues(alpha: 0.5),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.casino_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Flexible(
+                        child: Text(
+                          'PLAY FOR REAL',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xFFFFD54F),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12.0,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE53935),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'HOT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.0,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Real cash on SpinnerLog',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFFC8E6C9),
+                      fontSize: 10.0,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            JuwaButton(
+              label: 'PLAY',
+              icon: Icons.open_in_new_rounded,
+              onTap: onTap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

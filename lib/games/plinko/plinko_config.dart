@@ -5,8 +5,9 @@ import '../../theme.dart';
 /// Eight rows of pegs and nine payout buckets. Live drops use PlinkoPhysics.
 const int plinkoRows = 8;
 
-/// Multiplier per bucket, left→right. Symmetric, edges pay big.
-const List<double> plinkoMultipliers = [50, 10, 3, 1, 0.5, 1, 3, 10, 50];
+/// Multiplier per bucket, left→right. Symmetric, edges pay big; only the
+/// outer two buckets each side profit (~17% of live physics drops).
+const List<double> plinkoMultipliers = [50, 10, 1, 1, 0.5, 1, 1, 10, 50];
 
 const List<int> plinkoBets = [50, 100, 250, 500, 1000];
 

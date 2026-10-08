@@ -10,6 +10,7 @@ import '../../util.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/game_footer.dart';
 import '../../widgets/juwa_popup.dart';
+import '../../widgets/big_win_celebration_overlay.dart';
 import 'plinko_config.dart';
 import 'plinko_physics.dart';
 
@@ -32,6 +33,8 @@ class _PlinkoScreenState extends State<PlinkoScreen>
   int _totalPaid = 0;
   int _totalStaked = 0;
   int _launched = 0;
+  String? _bigWinTitle;
+  int _bigWinAmount = 0;
   int get _bet => plinkoBets[_betIndex];
 
   @override
@@ -55,6 +58,11 @@ class _PlinkoScreenState extends State<PlinkoScreen>
       _wallet.payout(payout);
       _lastWin = payout;
       _totalPaid += payout;
+      final isBig = payout >= ball.bet * 5;
+      if (isBig) {
+        _bigWinTitle = payout >= ball.bet * 10 ? 'JACKPOT!' : 'BIG WIN!';
+        _bigWinAmount = payout;
+      }
       AudioService.instance.play(
         payout >= ball.bet * 3 ? GameSound.bigWin : GameSound.reelStop,
       );
@@ -66,6 +74,10 @@ class _PlinkoScreenState extends State<PlinkoScreen>
     // Rebuild the header/footer/status only when their numbers change,
     // not every frame.
     if (landed.isNotEmpty || stopped) setState(() {});
+  }
+
+  void _dismissBigWin() {
+    setState(() => _bigWinTitle = null);
   }
 
   @override
@@ -102,7 +114,7 @@ class _PlinkoScreenState extends State<PlinkoScreen>
   void _dropChip() {
     if (!_wallet.bet(_bet, game: 'PLINKO')) {
       AudioService.instance.play(GameSound.error);
-      showGetCoinsPopup(context);
+      showOutOfCoinsDialog(context);
       return;
     }
     _haptic();
@@ -129,46 +141,60 @@ class _PlinkoScreenState extends State<PlinkoScreen>
             colorFilter: ColorFilter.mode(Color(0x55090016), BlendMode.darken),
           ),
         ),
-        child: Column(
+        child: Stack(
           children: [
-            GameHeader(
-              title: 'PLINKO',
-              subtitle: 'DROP & WIN',
-              onInfo: () => _showPrizes(context),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: LayoutBuilder(
-                  builder: (context, c) {
-                    return Center(
-                      child: AspectRatio(
-                        aspectRatio: PlinkoPhysics.width / PlinkoPhysics.height,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Static pegs/buckets: painted once, cached.
-                            const RepaintBoundary(
-                              child: CustomPaint(painter: _BoardPainter()),
-                            ),
-                            // Clipped: queued balls wait just above the board.
-                            ClipRect(
-                              child: RepaintBoundary(
-                                child: CustomPaint(
-                                  painter: _PlinkoPainter(_physics, _frame),
+            Column(
+              children: [
+                GameHeader(
+                  title: 'PLINKO',
+                  subtitle: 'DROP & WIN',
+                  onInfo: () => _showPrizes(context),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: LayoutBuilder(
+                      builder: (context, c) {
+                        return Center(
+                          child: AspectRatio(
+                            aspectRatio: PlinkoPhysics.width / PlinkoPhysics.height,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                // Static pegs/buckets: painted once, cached.
+                                const RepaintBoundary(
+                                  child: CustomPaint(painter: _BoardPainter()),
                                 ),
-                              ),
+                                // Clipped: queued balls wait just above the board.
+                                ClipRect(
+                                  child: RepaintBoundary(
+                                    child: CustomPaint(
+                                      painter: _PlinkoPainter(_physics, _frame),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                _winLine(),
+                _console(),
+              ],
+            ),
+
+            // Big Win Celebration Overlay with Play for Real & Manual Close
+            if (_bigWinTitle != null)
+              Positioned.fill(
+                child: BigWinCelebrationOverlay(
+                  title: _bigWinTitle!,
+                  winAmount: _bigWinAmount,
+                  onClose: _dismissBigWin,
                 ),
               ),
-            ),
-            _winLine(),
-            _console(),
           ],
         ),
       ),

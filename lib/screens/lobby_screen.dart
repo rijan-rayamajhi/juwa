@@ -8,6 +8,7 @@ import '../games/slots/slot_screen.dart';
 import '../games/slots/slot_theme.dart';
 import '../games/wheel/wheel_screen.dart';
 import '../games/plinko/plinko_screen.dart';
+import '../services/real_money_service.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -62,6 +63,14 @@ class _LobbyScreenState extends State<LobbyScreen>
         subtitle: '5 PAYLINES • 3×5',
         theme: fishTheme,
         thumb: fishTheme.thumb,
+      ),
+      _GameItem(
+        id: 'realmoney',
+        title: 'REAL MONEY',
+        subtitle: 'CASH JACKPOTS',
+        thumb: 'assets/images/realmoney_thumb.jpg',
+        isRealMoney: true,
+        action: (ctx) => launchRealMoneyPortal(ctx),
       ),
       _GameItem(
         id: 'vampirequeen',
@@ -148,11 +157,15 @@ class _LobbyScreenState extends State<LobbyScreen>
                                 onTap: () {
                                   _triggerHaptic();
                                   AudioService.instance.play(GameSound.click);
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: game.destination,
-                                    ),
-                                  );
+                                  if (game.action != null) {
+                                    game.action!(context);
+                                  } else {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: game.destination,
+                                      ),
+                                    );
+                                  }
                                 },
                               );
                             },
@@ -183,6 +196,8 @@ class _GameItem {
   final String thumb;
   final SlotTheme? theme; // slot games
   final WidgetBuilder? builder; // non-slot games (e.g. wheel)
+  final void Function(BuildContext)? action;
+  final bool isRealMoney;
 
   const _GameItem({
     required this.id,
@@ -191,9 +206,12 @@ class _GameItem {
     required this.thumb,
     this.theme,
     this.builder,
-  }) : assert(theme != null || builder != null);
+    this.action,
+    this.isRealMoney = false,
+  }) : assert(theme != null || builder != null || action != null);
 
-  WidgetBuilder get destination => builder ?? (_) => SlotScreen(theme: theme!);
+  WidgetBuilder get destination =>
+      builder ?? (_) => SlotScreen(theme: theme!);
 }
 
 // ------------------------------------------------------
@@ -240,18 +258,26 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
           animation: widget.pulseAnim,
           builder: (context, child) {
             final glow = widget.pulseAnim.value;
+            final isReal = game.isRealMoney;
+
             return Container(
               width: widget.width,
               height: widget.height,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Color.lerp(
-                    JuwaColors.goldDark,
-                    JuwaColors.gold,
-                    glow,
-                  )!,
-                  width: 2.5,
+                  color: isReal
+                      ? Color.lerp(
+                          const Color(0xFF00E676),
+                          const Color(0xFFFFD54F),
+                          glow,
+                        )!
+                      : Color.lerp(
+                          JuwaColors.goldDark,
+                          JuwaColors.gold,
+                          glow,
+                        )!,
+                  width: isReal ? 3.0 : 2.5,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -260,10 +286,14 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
                     offset: const Offset(0, 6),
                   ),
                   BoxShadow(
-                    color: JuwaColors.gold.withValues(
-                      alpha: 0.25 + glow * 0.22,
-                    ),
-                    blurRadius: 16 + glow * 8,
+                    color: isReal
+                        ? const Color(0xFF00E676).withValues(
+                            alpha: 0.35 + glow * 0.35,
+                          )
+                        : JuwaColors.gold.withValues(
+                            alpha: 0.25 + glow * 0.22,
+                          ),
+                    blurRadius: 16 + glow * 10,
                   ),
                 ],
               ),
@@ -272,7 +302,6 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // High-Res Game Artwork
                     Image.asset(game.thumb, fit: BoxFit.cover),
 
                     // Ambient inner vignette
@@ -290,6 +319,35 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
                         ),
                       ),
                     ),
+
+                    // Badge on top right for Real Money
+                    if (isReal)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD50000),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black45, blurRadius: 4),
+                            ],
+                          ),
+                          child: const Text(
+                            'LIVE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ),
 
                     // Bottom: Clean Title Ribbon
                     Positioned(
@@ -314,12 +372,14 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
                             Text(
                               game.title,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: isReal
+                                    ? const Color(0xFFFFD54F)
+                                    : Colors.white,
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.2,
-                                shadows: [
+                                shadows: const [
                                   Shadow(color: Colors.black, blurRadius: 6),
                                 ],
                               ),
@@ -328,8 +388,10 @@ class _LobbyGameCardState extends State<_LobbyGameCard> {
                             Text(
                               game.subtitle,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: JuwaColors.textDim,
+                              style: TextStyle(
+                                color: isReal
+                                    ? const Color(0xFF69F0AE)
+                                    : JuwaColors.textDim,
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6,

@@ -12,6 +12,7 @@ import '../../widgets/game_header.dart';
 import '../../widgets/game_footer.dart';
 import '../../widgets/coin_flow_overlay.dart';
 import '../../widgets/juwa_popup.dart';
+import '../../widgets/big_win_celebration_overlay.dart';
 import 'wheel_config.dart';
 
 class WheelScreen extends StatefulWidget {
@@ -42,6 +43,7 @@ class _WheelScreenState extends State<WheelScreen>
   int _lastWin = 0;
   int _displayedWin = 0;
   String? _banner;
+  String? _bigWinTitle;
 
   int get _bet => wheelBets[_betIndex];
 
@@ -135,7 +137,7 @@ class _WheelScreenState extends State<WheelScreen>
       if (_auto) {
         setState(() => _auto = false);
       }
-      showGetCoinsPopup(context);
+      showOutOfCoinsDialog(context);
       return;
     }
     _autoTimer?.cancel();
@@ -168,16 +170,24 @@ class _WheelScreenState extends State<WheelScreen>
     final win = wheelPayout(_pendingIndex, _bet);
     _wallet.payout(win);
     final slice = wheelSlices[_pendingIndex];
+    final isBig = slice.isJackpot || win >= _bet * 5;
+    final bigTitle = slice.isJackpot
+        ? 'JACKPOT!'
+        : win >= _bet * 5
+            ? 'BIG WIN!'
+            : null;
+
     setState(() {
       _spinning = false;
       _lastWin = win;
+      _bigWinTitle = bigTitle;
       _banner = win == 0
           ? 'TRY AGAIN'
           : slice.isJackpot
-          ? 'JACKPOT!'
-          : win >= _bet * 5
-          ? 'BIG WIN!'
-          : 'YOU WON';
+              ? 'JACKPOT!'
+              : win >= _bet * 5
+                  ? 'BIG WIN!'
+                  : 'YOU WON';
     });
     if (win > 0) {
       AudioService.instance.play(
@@ -197,8 +207,19 @@ class _WheelScreenState extends State<WheelScreen>
       _displayedWin = 0;
     }
 
-    if (_auto) {
+    if (_auto && !isBig) {
       _autoTimer = Timer(const Duration(milliseconds: 1400), () {
+        if (mounted && _auto && !_spinning && _bigWinTitle == null) {
+          _startSpin();
+        }
+      });
+    }
+  }
+
+  void _dismissBigWin() {
+    setState(() => _bigWinTitle = null);
+    if (_auto && !_spinning) {
+      _autoTimer = Timer(const Duration(milliseconds: 500), () {
         if (mounted && _auto && !_spinning) {
           _startSpin();
         }
@@ -252,6 +273,16 @@ class _WheelScreenState extends State<WheelScreen>
                 child: CoinFlowOverlay(controller: _coinFlowController),
               ),
             ),
+
+            // Big Win Celebration Overlay with Play for Real & Manual Close
+            if (_bigWinTitle != null)
+              Positioned.fill(
+                child: BigWinCelebrationOverlay(
+                  title: _bigWinTitle!,
+                  winAmount: _lastWin,
+                  onClose: _dismissBigWin,
+                ),
+              ),
           ],
         ),
       ),

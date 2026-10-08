@@ -6,6 +6,7 @@ import 'services/wallet_service.dart';
 import 'services/settings_service.dart';
 import 'services/audio_service.dart';
 import 'screens/lobby_screen.dart';
+import 'widgets/juwa_snackbar.dart';
 
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -18,15 +19,12 @@ Future<void> main() async {
   await SettingsService.instance.load();
   await AudioService.instance.initialize();
   WalletService.instance.onLevelUp = (level) {
-    AudioService.instance.play(GameSound.bigWin);
-    messengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('LEVEL UP! You reached level $level. '
-            'Your reward is waiting in the Mailbox.'),
-        backgroundColor: JuwaColors.panel,
-        behavior: SnackBarBehavior.floating,
-      ));
+    showJuwaMessengerSnackBar(
+      messengerKey.currentState,
+      'LEVEL UP! You reached level $level. '
+      'Your reward is waiting in the Mailbox.',
+      sound: GameSound.bigWin,
+    );
   };
   runApp(const JuwaApp());
   FlutterNativeSplash.remove();

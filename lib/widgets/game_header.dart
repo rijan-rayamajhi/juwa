@@ -15,7 +15,7 @@ import 'top_bar.dart';
 /// - Safe area inset handling without double padding
 /// - Left action cluster: Back button, Info/Help button, and live Sound toggle
 /// - Centered Vegas game title plaque with gold stars and subtitle
-/// - Right currency cluster: Animated Coins & Gems chips with '+' actions
+/// - Right currency cluster: Animated Coins chip (gems live in the lobby) with '+' actions
 /// - 3-zone balanced flex layout with [FittedBox] scaling to guarantee zero overflow
 class GameHeader extends StatelessWidget {
   final String title;
@@ -23,6 +23,7 @@ class GameHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onInfo;
   final bool showCurrencies;
+  final bool showRealMoneyPlay;
   final List<Widget>? customActions;
   final Widget? customTrailing;
   final VoidCallback? onGetCoins;
@@ -34,6 +35,7 @@ class GameHeader extends StatelessWidget {
     this.onBack,
     this.onInfo,
     this.showCurrencies = true,
+    this.showRealMoneyPlay = true,
     this.customActions,
     this.customTrailing,
     this.onGetCoins,
@@ -139,17 +141,13 @@ class GameHeader extends StatelessWidget {
                             builder: (context, _) => Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                if (showRealMoneyPlay) ...[
+                                  const RealCashTopPill(),
+                                  const SizedBox(width: 8),
+                                ],
                                 CurrencyPill(
                                   icon: 'assets/images/coin.png',
                                   value: formatCoins(wallet.coins),
-                                  onPlus:
-                                      onGetCoins ??
-                                      () => showGetCoinsPopup(context),
-                                ),
-                                const SizedBox(width: 10),
-                                CurrencyPill(
-                                  icon: 'assets/images/gem.png',
-                                  value: '${wallet.gems}',
                                   onPlus:
                                       onGetCoins ??
                                       () => showGetCoinsPopup(context),

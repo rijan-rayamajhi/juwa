@@ -30,5 +30,19 @@ ThemeData juwaTheme() {
       bodyColor: Colors.white,
       displayColor: Colors.white,
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      behavior: SnackBarBehavior.floating,
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 14,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: JuwaColors.gold, width: 1.5),
+      ),
+    ),
   );
 }
